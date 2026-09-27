@@ -1,0 +1,6 @@
+{
+  "name": "Jerome Urbano 3D Model Viewer",
+  "description": "Interactive 3D Model Viewer for FBX, OBJ, and GLTF models created in Blender, with server-side upload and storage using Node.js and Multer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
