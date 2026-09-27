@@ -10,8 +10,8 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { 
-  Box, Upload, Trash2, Eye, RefreshCw, ZoomIn, ZoomOut, RotateCw, 
-  Layers, FolderOpen, AlertCircle, Cpu, Camera, Play, Pause, Download, FolderPlus, FileText, CheckCircle2
+  Box, Trash2, Eye, RefreshCw, ZoomIn, ZoomOut, RotateCw, 
+  Layers, FolderOpen, AlertCircle, Cpu, Camera, Play, Pause, Download, FolderPlus
 } from 'lucide-react';
 
 interface ModelItem {
@@ -27,7 +27,7 @@ interface ModelItem {
 export default function App() {
   const [models, setModels] = useState<ModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'viewer' | 'upload' | 'manager'>('viewer');
+  const [activeTab, setActiveTab] = useState<'viewer' | 'manager'>('viewer');
   
   // Viewer states
   const [isAutoRotate, setIsAutoRotate] = useState(false);
@@ -37,11 +37,6 @@ export default function App() {
   const [vertexCount, setVertexCount] = useState(0);
   const [isLoadingModel, setIsLoadingModel] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Upload states
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Three.js Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -423,53 +418,6 @@ export default function App() {
     link.click();
   };
 
-  // File Upload Handler
-  const handleFileUpload = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const fileInput = form.elements.namedItem('modelFile') as HTMLInputElement;
-    if (!fileInput.files || fileInput.files.length === 0) {
-      setUploadMessage({ type: 'error', text: 'Please select a 3D model file (.fbx, .obj, .gltf, .glb)' });
-      return;
-    }
-
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('modelFile', file);
-
-    setUploading(true);
-    setUploadProgress(30);
-    setUploadMessage(null);
-
-    try {
-      setUploadProgress(60);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      setUploadProgress(90);
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        setUploadProgress(100);
-        setUploadMessage({ type: 'success', text: `Model "${data.model.name}" uploaded successfully to /uploads folder!` });
-        form.reset();
-        await fetchModels();
-        setSelectedModel(data.model);
-        setActiveTab('viewer');
-      } else {
-        throw new Error(data.error || 'Upload failed');
-      }
-    } catch (err: any) {
-      console.error('Upload error:', err);
-      setUploadMessage({ type: 'error', text: err.message || 'Failed to upload file to server.' });
-    } finally {
-      setUploading(false);
-      setTimeout(() => setUploadProgress(0), 1500);
-    }
-  };
-
   const handleDeleteModel = async (filename: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Are you sure you want to delete ${filename} from the server /uploads folder?`)) return;
@@ -528,17 +476,6 @@ export default function App() {
             3D Viewport
           </button>
           <button
-            onClick={() => setActiveTab('upload')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'upload'
-                ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            Upload 3D Model
-          </button>
-          <button
             onClick={() => setActiveTab('manager')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'manager'
@@ -571,14 +508,10 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-400 mb-4 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/80">
-              💡 You can place your Blender files directly in the <code className="text-sky-400 font-mono">/uploads</code> folder or use the Upload tab above!
-            </p>
-
             <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
               {models.length === 0 ? (
                 <div className="text-xs text-slate-500 italic p-4 text-center bg-slate-950/30 rounded-xl border border-slate-900">
-                  No 3D models in the `/uploads` folder yet. Use the Upload tab to add files.
+                  No 3D models found in `/uploads` folder. Copy files to the directory to see them.
                 </div>
               ) : (
                 models.map((model) => (
@@ -672,7 +605,7 @@ export default function App() {
                     <FolderPlus className="w-12 h-12 text-sky-400 mb-1 animate-bounce" />
                     <h3 className="text-base font-bold text-white">No 3D Model Selected</h3>
                     <p className="text-xs text-slate-400 max-w-md">
-                      Upload an FBX/OBJ file using the Upload tab, or place it in the <code className="text-sky-400 font-mono">/uploads</code> server folder.
+                      Place a Blender FBX/OBJ/GLTF/GLB file inside the <code className="text-sky-400 font-mono">/uploads</code> folder of this project.
                     </p>
                   </div>
                 )}
@@ -768,7 +701,7 @@ export default function App() {
               </div>
 
               {/* Instructions / Features Card */}
-              <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 shadow-xl backdrop-blur-sm grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 shadow-xl backdrop-blur-sm grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center shrink-0">
                     <RotateCw className="w-4 h-4" />
@@ -788,68 +721,7 @@ export default function App() {
                     <p className="text-[11px] text-slate-400">Use your mouse scroll wheel or buttons to inspect intricate details of your model.</p>
                   </div>
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
-                    <FolderOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white mb-1">Server Folder Storage</h4>
-                    <p className="text-[11px] text-slate-400">Files are stored securely in the server's `/uploads` folder without requiring a database.</p>
-                  </div>
-                </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'upload' && (
-            <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-8 shadow-xl backdrop-blur-sm flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/20">
-                <Upload className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-1">Upload 3D Model to `/uploads`</h3>
-              <p className="text-xs text-slate-400 max-w-md mb-6">
-                Upload `.fbx`, `.obj`, `.gltf`, or `.glb` files from Blender. Files are saved directly into the server's <code className="text-sky-400 font-mono">/uploads</code> folder.
-              </p>
-
-              <form onSubmit={handleFileUpload} className="w-full max-w-md flex flex-col gap-4">
-                <div className="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-2xl p-8 bg-slate-950/40 transition-colors flex flex-col items-center justify-center cursor-pointer relative">
-                  <input
-                    type="file"
-                    name="modelFile"
-                    accept=".fbx,.obj,.gltf,.glb"
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    required
-                  />
-                  <FileText className="w-10 h-10 text-slate-500 mb-2" />
-                  <span className="text-xs font-medium text-slate-200">Click to browse or drag and drop your 3D file</span>
-                  <span className="text-[10px] text-slate-500 mt-1">Supports FBX, OBJ, GLTF, GLB (Max 100MB)</span>
-                </div>
-
-                {uploading && (
-                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                    <div className="bg-sky-500 h-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-                  </div>
-                )}
-
-                {uploadMessage && (
-                  <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                    uploadMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
-                  }`}>
-                    {uploadMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                    <span>{uploadMessage.text}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-lg shadow-sky-600/30 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  {uploading ? 'Uploading to /uploads...' : 'Upload & View Model'}
-                </button>
-              </form>
             </div>
           )}
 
@@ -858,7 +730,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-sm font-semibold text-white">Server Storage Directory (`/uploads`)</h3>
-                  <p className="text-xs text-slate-400">All files stored in the server uploads folder.</p>
+                  <p className="text-xs text-slate-400">Models placed manually in the server uploads folder are listed here.</p>
                 </div>
                 <button
                   onClick={fetchModels}
@@ -874,7 +746,7 @@ export default function App() {
                   <div className="py-12 text-center bg-slate-950/40 rounded-xl border border-slate-800/80">
                     <FolderOpen className="w-10 h-10 text-slate-600 mx-auto mb-3" />
                     <p className="text-xs font-medium text-slate-300 mb-1">No 3D models found in server folder</p>
-                    <p className="text-[11px] text-slate-500">Use the Upload tab above to add your 3D models.</p>
+                    <p className="text-[11px] text-slate-500">Copy your Blender FBX or OBJ files directly into the `/uploads` directory.</p>
                   </div>
                 ) : (
                   models.map((model) => (
